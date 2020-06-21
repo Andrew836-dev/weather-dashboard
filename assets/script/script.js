@@ -1,9 +1,10 @@
 $("document").ready(function () {
-    var lastWeather = localStorage.getItem("lastWeather");
-    var lastForecast = localStorage.getItem("lastForecast");
-    var lastCity = localStorage.getItem("lastCity");
+    // var lastWeather = localStorage.getItem("lastWeather");
+    // var lastForecast = localStorage.getItem("lastForecast");
+    var lastCity = localStorage.getItem("lastCity") || " ";
     var uvTag = $("#uv-tag");
     var displayUnits = "metric";
+    var dateFormat = "M/D/YYYY";
     // var units = {
     //     "metric": {
     //         temp = "C",
@@ -40,32 +41,23 @@ $("document").ready(function () {
         uvTag.html(input);
     }
 
-    function getUV(lat, lon) {
-        $.ajax({
-            type: 'GET',
-            dataType: 'json',
-            beforeSend: function (request) {
-                setUV("Getting UV...");
-                request.setRequestHeader('x-access-token', '9cc70a7bbb61df3f008fa358b3bb0489');
-            },
-            url: 'https://api.openuv.io/api/v1/uv?lat=' + lat + '&lng=' + lon,
-            success: function (response) {
-                setUV(response.result.uv);
-                // 
-            },
-            error: function () {
-                setUV("Error retriving UV");
-            }
-        });
-    }
-
     function callAPI(type, searchCity) {
-        var queryUrl = "https://api.openweathermap.org/data/2.5/" + type + "?appid=fc2d1f9e61e29d3aff30681d900d7f1b&q=" + searchCity + "&units=" + displayUnits;
         if (!type) {
             callAPI("weather", searchCity);
             callAPI("forecast", searchCity);
         }
         else {
+            var queryUrl = `https://api.openweathermap.org/data/2.5/${type}?appid=fc2d1f9e61e29d3aff30681d900d7f1b&`
+            switch (type) {
+                case "weather":
+                case "forecast":
+                    queryUrl += "q=" + searchCity + "&units=" + displayUnits;
+                    break;
+                case "uvi":
+                    var coords = searchCity.split(" ");
+                    queryUrl += `lat=${coords[0]}&lon=${coords[1]}`;
+                    break;
+            }
             $.ajax({
                 url: queryUrl,
                 method: "GET"
@@ -76,35 +68,35 @@ $("document").ready(function () {
                 else if (type == "forecast") {
                     displayForecast(response);
                 }
+                else {
+                    setUV(response.value);
+                }
             });
         }
     }
 
     function displayWeather(weatherData) {
-        console.log("Latest Data");
-        console.log(weatherData);
         $("#current-weather").empty();
         $("#current-weather").append(
-            $("<h1>").html(weatherData.name + " (" + moment(weatherData.dt, "X").format("M/D/YYYY") + ")").append(
-                $("<img>")
-                    .attr("src", `http://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png`)
+            $("<h1>").html(`${weatherData.name} (${moment(weatherData.dt, "X").format(dateFormat)})`).append(
+                $("<img>").attr("src", `http://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png`)
                     .attr("alt", weatherData.weather[0].description)
             ),
-            $("<p>").html("Temperature: " + weatherData.main.temp + "&deg;C"),
-            $("<p>").text("Humidity: " + weatherData.main.humidity + "%"),
-            $("<p>").text("Wind speed: " + weatherData.wind.speed + "m/s"),
+            $("<p>").html(`Temperature: ${weatherData.main.temp}&deg;C`),
+            $("<p>").text(`Humidity: ${weatherData.main.humidity}%`),
+            $("<p>").text(`Wind speed: ${weatherData.wind.speed}m/s`),
             uvTag
         );
-        getUV(weatherData.coord.lat, weatherData.coord.lon);
+        callAPI("uvi", `${weatherData.coord.lat} ${weatherData.coord.lon}`);
         addCity(weatherData.name);
     }
 
     function displayForecast(forecastData) {
         $("#forecast-weather").empty();
-        for (var i = 7; i < 40; i += 7) {
+        for (var i = 7; i < 40; i += 8) {
             var forecast = forecastData.list[i];
             $("#forecast-weather").append($("<div>").addClass("col bg-primary text-white").append(
-                $("<h4>").text(moment(forecast.dt, "X").format("M/D/YYYY")),
+                $("<h4>").text(moment(forecast.dt, "X").format(dateFormat)),
                 $("<img>").attr("src", `http://openweathermap.org/img/wn/${forecast.weather[0].icon}.png`)
                     .attr("alt", forecast.weather[0].description),
                 $("<p>").html(`Temp: ${forecast.main.temp}&deg;C`),
@@ -126,7 +118,7 @@ $("document").ready(function () {
     }
 
     function init() {
-        if (lastCity) {
+        if (lastCity.trim()) {
             callAPI("", lastCity);
         }
     }
