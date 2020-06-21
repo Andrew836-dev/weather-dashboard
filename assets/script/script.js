@@ -79,7 +79,7 @@ $("document").ready(function () {
         $("#current-weather").empty();
         $("#current-weather").append(
             $("<h1>").html(`${weatherData.name} (${moment(weatherData.dt, "X").format(dateFormat)})`).append(
-                $("<img>").attr("src", `http://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png`)
+                $("<img>").attr("src", `https://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png`)
                     .attr("alt", weatherData.weather[0].description)
             ),
             $("<p>").html(`Temperature: ${weatherData.main.temp}&deg;C`),
@@ -97,7 +97,7 @@ $("document").ready(function () {
             var forecast = forecastData.list[i];
             $("#forecast-weather").append($("<div>").addClass("col bg-primary text-white").append(
                 $("<h4>").text(moment(forecast.dt, "X").format(dateFormat)),
-                $("<img>").attr("src", `http://openweathermap.org/img/wn/${forecast.weather[0].icon}.png`)
+                $("<img>").attr("src", `https://openweathermap.org/img/wn/${forecast.weather[0].icon}.png`)
                     .attr("alt", forecast.weather[0].description),
                 $("<p>").html(`Temp: ${forecast.main.temp}&deg;C`),
                 $("<p>").text(`Humidity: ${forecast.main.humidity}%`)
