@@ -1,0 +1,39 @@
+
+.uv-low {
+    background-color: #558B2F;
+    color: white;
+}
+
+.uv-mod {
+    background-color: #F9A825;
+    color: black;
+}
+
+.uv-high {
+    background-color: #EF6C00;
+    color: white;
+}
+
+.uv-v-high {
+    background-color: #B71C1C;
+    color: white;
+}
+
+.uv-extr {
+    background-color: #6A1B9A;
+    color: white;
+}
+
+#uv-tag {
+    min-width: 2rem;
+}
+
+ul {
+    padding: 0px;
+    font-size: larger;
+}
+li {
+    list-style: none;
+    border: 1px solid #c2c2c2;
+    cursor: pointer;
+}
