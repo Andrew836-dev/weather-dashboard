@@ -28,15 +28,21 @@
     <div class="container-fluid">
         <div class="row">
             <div class="search-bar col-12 col-sm-4 bg-light">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="imperialCheck">
+                    <label class="form-check-label" for="imperialCheck">
+                      Check this for &deg;F
+                    </label>
+                  </div>
                 <h3>Search for a city:</h3>
                 <div class="input-group mb-3">
                     <input type="text" class="form-control" id="search-text" placeholder="City Name" />
                     <div class="input-group-append">
-                        <button type="button" id="search-btn" class="btn btn-primary"><i
+                        <button type="submit" id="search-btn" class="btn btn-primary"><i
                                 class="fas fa-search"></i></button>
                     </div>
                 </div>
-                <ul id="search-history">
+                <ul id="search-history" class="list-group">
                 </ul>
             </div>
             <div class="col-12 col-sm-8">

@@ -1,16 +1,21 @@
 $("document").ready(function () {
-    // var lastWeather = localStorage.getItem("lastWeather");
-    // var lastForecast = localStorage.getItem("lastForecast");
     var lastCity = localStorage.getItem("lastCity") || " ";
     var uvTag = $("#uv-tag");
     var displayUnits = "metric";
-    var dateFormat = "M/D/YYYY";
-    // var units = {
-    //     "metric": {
-    //         temp = "C",
-    //         wind = "m/s"
-    //     }
-    // }
+    var units = {
+        "metric": {
+            temp: "&deg;C",
+            wind: "m/s",
+            dateFormat: "Do MMM YYYY",
+            dateFormatShort: "D/M/YY"
+        },
+        "imperial": {
+            temp: "&deg;F",
+            wind: "MPH",
+            dateFormat: "MMM Do YYYY",
+            dateFormatShort: "M/D/YY"
+        }
+    }
 
     function setUV(input) {
         uvTag.removeClass();
@@ -54,8 +59,8 @@ $("document").ready(function () {
                     queryUrl += "q=" + searchCity + "&units=" + displayUnits;
                     break;
                 case "uvi":
-                    var coords = searchCity.split(" ");
-                    queryUrl += `lat=${coords[0]}&lon=${coords[1]}`;
+                    // var coords = searchCity.split(" ");
+                    queryUrl += searchCity;
                     break;
             }
             $.ajax({
@@ -78,16 +83,17 @@ $("document").ready(function () {
     function displayWeather(weatherData) {
         $("#current-weather").empty();
         $("#current-weather").append(
-            $("<h1>").html(`${weatherData.name} (${moment(weatherData.dt, "X").format(dateFormat)})`).append(
+            $("<h1>").html(`${weatherData.name} (${moment(weatherData.dt, "X").format(units[displayUnits].dateFormat)})`).append(
                 $("<img>").attr("src", `https://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png`)
                     .attr("alt", weatherData.weather[0].description)
             ),
-            $("<p>").html(`Temperature: ${weatherData.main.temp}&deg;C`),
+            $("<p>").html(`Temperature: ${weatherData.main.temp}${units[displayUnits].temp}`),
             $("<p>").text(`Humidity: ${weatherData.main.humidity}%`),
-            $("<p>").text(`Wind speed: ${weatherData.wind.speed}m/s`),
+            $("<p>").text(`Wind speed: ${weatherData.wind.speed}${units[displayUnits].wind}`),
             uvTag
         );
-        callAPI("uvi", `${weatherData.coord.lat} ${weatherData.coord.lon}`);
+        callAPI("uvi", `lat=${weatherData.coord.lat}&lon=${weatherData.coord.lon}`)
+        // callAPI("uvi", `${weatherData.coord.lat} ${weatherData.coord.lon}`);
         addCity(weatherData.name);
     }
 
@@ -96,10 +102,10 @@ $("document").ready(function () {
         for (var i = 7; i < 40; i += 8) {
             var forecast = forecastData.list[i];
             $("#forecast-weather").append($("<div>").addClass("col bg-primary text-white").append(
-                $("<h4>").text(moment(forecast.dt, "X").format(dateFormat)),
+                $("<h4>").text(moment(forecast.dt, "X").format(units[displayUnits].dateFormatShort)),
                 $("<img>").attr("src", `https://openweathermap.org/img/wn/${forecast.weather[0].icon}.png`)
                     .attr("alt", forecast.weather[0].description),
-                $("<p>").html(`Temp: ${forecast.main.temp}&deg;C`),
+                $("<p>").html(`Temp: ${forecast.main.temp}${units[displayUnits].temp}`),
                 $("<p>").text(`Humidity: ${forecast.main.humidity}%`)
             ));
         }
@@ -112,7 +118,7 @@ $("document").ready(function () {
                 $(this).remove();
             }
         });
-        $("#search-history").prepend($("<li>").text(cityName));
+        $("#search-history").prepend($("<li>").text(cityName).addClass("list-group-item"));
         localStorage.setItem("lastCity", cityName);
         lastCity = cityName;
     }
@@ -123,18 +129,36 @@ $("document").ready(function () {
         }
     }
 
-    init();
-    $("#search-btn").on("click", function (event) {
+    function submit() {
         event.preventDefault();
         var searchCity = $("#search-text").val().trim()
         if (searchCity && searchCity.toUpperCase() !== lastCity.toUpperCase()) {
             callAPI("", searchCity);
         }
-    });
+    }
+    init();
+    $("#search-text").on("keydown", function (event) {
+        // event.preventDefault();
+        if (event.keyCode == 13) {
+            submit();
+        }
+    })
+    $("#search-btn").on("click", submit);
     $("#search-history").on("click", function (event) {
         var searchCity = event.target.textContent.trim();
         if (searchCity && searchCity !== lastCity) {
             callAPI("", searchCity);
+        }
+    });
+    $("#imperialCheck").on("click", function () {
+        if (displayUnits == "metric") {
+            displayUnits = "imperial";
+        }
+        else {
+            displayUnits = "metric";
+        }
+        if (lastCity.trim()) {
+            callAPI("", lastCity);
         }
     });
 });
