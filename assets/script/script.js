@@ -45,42 +45,35 @@ $("document").ready(function () {
         }
         uvTag.html(input);
     }
-
-    function callAPI(type, searchCity) {
-        if (!type) {
-            callAPI("weather", searchCity);
-            callAPI("forecast", searchCity);
-        }
-        else {
-            var queryUrl = `https://api.openweathermap.org/data/2.5/${type}?appid=fc2d1f9e61e29d3aff30681d900d7f1b&`
-            switch (type) {
-                case "weather":
-                case "forecast":
-                    queryUrl += "q=" + searchCity + "&units=" + displayUnits;
-                    break;
-                case "uvi":
-                    // var coords = searchCity.split(" ");
-                    queryUrl += searchCity;
-                    break;
+    
+    // removes duplicates and keeps most recent successful search at the top and in localStorage
+    function addCity(cityName) {
+        $("#search-history").children().each(function () {
+            if ($(this).text().toUpperCase() == cityName.toUpperCase()) {
+                $(this).remove();
             }
-            $.ajax({
-                url: queryUrl,
-                method: "GET"
-            }).then(function (response) {
-                if (type == "weather") {
-                    displayWeather(response);
-                }
-                else if (type == "forecast") {
-                    displayForecast(response);
-                }
-                else {
-                    setUV(response.value);
-                }
-            });
-        }
+        });
+        $("#search-history").prepend($("<li>").text(cityName).addClass("list-group-item"));
+        localStorage.setItem("lastCity", cityName);
+        lastCity = cityName;
     }
 
-    function displayWeather(weatherData) {
+    function callAPI(type, queryAdd, successFunc) {
+        $.ajax({
+            url: `https://api.openweathermap.org/data/2.5/${type}?appid=fc2d1f9e61e29d3aff30681d900d7f1b&${queryAdd}`,
+            method: "GET",
+            success: function (response) {
+                successFunc(response);
+            }
+        });
+    }
+
+    var displayUV = function (response) {
+        setUV(response.value);
+    };
+
+    // process the current weather results
+    var displayWeather = function (weatherData) {
         $("#current-weather").empty();
         $("#current-weather").append(
             $("<h1>").html(`${weatherData.name} (${moment(weatherData.dt, "X").format(units[displayUnits].dateFormat)})`).append(
@@ -92,12 +85,12 @@ $("document").ready(function () {
             $("<p>").text(`Wind speed: ${weatherData.wind.speed}${units[displayUnits].wind}`),
             uvTag
         );
-        callAPI("uvi", `lat=${weatherData.coord.lat}&lon=${weatherData.coord.lon}`)
-        // callAPI("uvi", `${weatherData.coord.lat} ${weatherData.coord.lon}`);
+        callAPI("uvi", `lat=${weatherData.coord.lat}&lon=${weatherData.coord.lon}`, displayUV)
         addCity(weatherData.name);
     }
 
-    function displayForecast(forecastData) {
+    // proccess the forecast results
+    var displayForecast = function (forecastData) {
         $("#forecast-weather").empty();
         for (var i = 7; i < 40; i += 8) {
             var forecast = forecastData.list[i];
@@ -111,21 +104,14 @@ $("document").ready(function () {
         }
     }
 
-    // removes duplicates and keeps most recent successful search at the top and in localStorage
-    function addCity(cityName) {
-        $("#search-history").children().each(function () {
-            if ($(this).text().toUpperCase() == cityName.toUpperCase()) {
-                $(this).remove();
-            }
-        });
-        $("#search-history").prepend($("<li>").text(cityName).addClass("list-group-item"));
-        localStorage.setItem("lastCity", cityName);
-        lastCity = cityName;
-    }
-
+    // initialize data, loads last city if there is one in localStorage
     function init() {
         if (lastCity.trim()) {
-            callAPI("", lastCity);
+            callAPI("weather", `q=${lastCity}&units=${displayUnits}`, displayWeather);
+            callAPI("forecast", `q=${lastCity}&units=${displayUnits}`, displayForecast);
+        }
+        else {
+            setUV("Search for a City to see the current weather!");
         }
     }
 
@@ -133,12 +119,13 @@ $("document").ready(function () {
         event.preventDefault();
         var searchCity = $("#search-text").val().trim()
         if (searchCity && searchCity.toUpperCase() !== lastCity.toUpperCase()) {
-            callAPI("", searchCity);
+            callAPI("weather", `q=${searchCity}&units=${displayUnits}`, displayWeather);
+            callAPI("forecast", `q=${searchCity}&units=${displayUnits}`, displayForecast);
         }
     }
+
     init();
     $("#search-text").on("keydown", function (event) {
-        // event.preventDefault();
         if (event.keyCode == 13) {
             submit();
         }
@@ -147,7 +134,8 @@ $("document").ready(function () {
     $("#search-history").on("click", function (event) {
         var searchCity = event.target.textContent.trim();
         if (searchCity && searchCity !== lastCity) {
-            callAPI("", searchCity);
+            callAPI("weather", `q=${searchCity}&units=${displayUnits}`, displayWeather);
+            callAPI("forecast", `q=${searchCity}&units=${displayUnits}`, displayForecast);
         }
     });
     $("#imperialCheck").on("click", function () {
@@ -158,7 +146,7 @@ $("document").ready(function () {
             displayUnits = "metric";
         }
         if (lastCity.trim()) {
-            callAPI("", lastCity);
+            init();
         }
     });
 });
