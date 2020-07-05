@@ -33,15 +33,19 @@
                     <label class="form-check-label" for="imperialCheck">
                         Check this for &deg;F
                     </label>
+                    <label class="form-control-label">Country Code (2 Letters)</label>
+                    <input class="form-control" id="country-code" type="text" />
                 </div>
+
                 <h3>Search for a city:</h3>
-                <div class="input-group mb-3">
+                <form class="input-group mb-3">
                     <input type="text" class="form-control" id="search-text" placeholder="City Name" />
                     <div class="input-group-append">
+                        <input type="submit" value="" />
                         <button type="submit" id="search-btn" class="btn btn-primary"><i
                                 class="fas fa-search"></i></button>
                     </div>
-                </div>
+                </form>
                 <h5>Search history:</h5>
                 <ul id="search-history" class="list-group">
                 </ul>
@@ -49,8 +53,23 @@
             <div class="col-12 col-sm-8">
                 <div class="card">
                     <div id="current-weather" class="">
-                        <h1>Current weather will be displayed here.</h1>
-                        <p id="uv-tag"></p>
+                        <h1 id="currentCity"></h1>
+                        <div class="row">
+                            <div class="weatherNumbers col">
+                                <!-- <h4>Current weather data</h4> -->
+                                <p>Temperature: <span id="currentTemp"></span></p>
+                                <p>Humidity: <span id="currentHumidity"></span></p>
+                                <p>Wind speed: <span id="currentWindSpeed"></span></p>
+                                <p id="uv-tag"></p>
+                            </div>
+                            <div class="timeNumbers col">
+                                <!-- <h4>Trying to think of a useful title</h4> -->
+                                <p>Currently: <span id="currentTime"></span></p>
+                                <p>Updated: <span id="reportTime"></span></p>
+                                <p>Sunrise: <span id="sunriseTime"></span></p>
+                                <p>Sunset: <span id="sunsetTime"></span></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">

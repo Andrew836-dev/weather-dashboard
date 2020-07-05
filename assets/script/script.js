@@ -1,5 +1,5 @@
 $("document").ready(function () {
-    var lastCity = localStorage.getItem("lastCity") || " ";
+    var searchHistory = JSON.parse(localStorage.getItem("lastCity")) || [];
     var uvTag = $("#uv-tag");
     var displayUnits = "metric";
     var units = {
@@ -45,17 +45,29 @@ $("document").ready(function () {
         }
         uvTag.html(input);
     }
-    
-    // removes duplicates and keeps most recent successful search at the top and in localStorage
-    function addCity(cityName) {
-        $("#search-history").children().each(function () {
-            if ($(this).text().toUpperCase() == cityName.toUpperCase()) {
+
+    // removes duplicates and keeps most recent successful search at the top
+    function removeDuplicateCity(cityName) {
+        $("#search-history").children().each(function (index) {
+            if (index > 0 && $(this).text().toUpperCase() == cityName.toUpperCase()) {
+                $(this).remove();
+            }
+            if (index > 5) {
                 $(this).remove();
             }
         });
+        for (var i = 1; i < searchHistory.length; i++) {
+            if (searchHistory[i] == cityName) {
+                searchHistory.splice(i, 1);
+            }
+        }
+        if (searchHistory.length > 5) {
+            searchHistory.splice(5);
+        }
+    }
+
+    function addCityToHistory(cityName) {
         $("#search-history").prepend($("<li>").text(cityName).addClass("list-group-item"));
-        localStorage.setItem("lastCity", cityName);
-        lastCity = cityName;
     }
 
     function callAPI(type, queryAdd, successFunc) {
@@ -64,33 +76,45 @@ $("document").ready(function () {
             method: "GET",
             success: function (response) {
                 successFunc(response);
+                console.log(type);
+                console.log(response);
             }
         });
     }
 
-    var displayUV = function (response) {
+    var processUV = function (response) {
         setUV(response.value);
     };
 
+    var processTimes = function (report, sunrise, sunset, timezone) {
+        $("#currentTime").html(`${moment().format("hh:mm a")}`)
+        $("#reportTime").html(`${moment(report, "X").format("hh:mm a")}`);
+        $("#sunriseTime").html(`${moment(sunrise, "X").format("hh:mm a")}`);
+        $("#sunsetTime").html(`${moment(sunset, "X").format("hh:mm a")}`);
+        console.log(moment(timezone, "X"))
+    };
+
     // process the current weather results
-    var displayWeather = function (weatherData) {
-        $("#current-weather").empty();
-        $("#current-weather").append(
-            $("<h1>").html(`${weatherData.name} (${moment(weatherData.dt, "X").format(units[displayUnits].dateFormat)})`).append(
-                $("<img>").attr("src", `https://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png`)
-                    .attr("alt", weatherData.weather[0].description)
-            ),
-            $("<p>").html(`Temperature: ${weatherData.main.temp}${units[displayUnits].temp}`),
-            $("<p>").text(`Humidity: ${weatherData.main.humidity}%`),
-            $("<p>").text(`Wind speed: ${weatherData.wind.speed}${units[displayUnits].wind}`),
-            uvTag
-        );
-        callAPI("uvi", `lat=${weatherData.coord.lat}&lon=${weatherData.coord.lon}`, displayUV)
-        addCity(weatherData.name);
+    var processWeather = function (weatherData) {
+        var processedName = `${weatherData.name},${weatherData.sys.country}`;
+        $("#currentCity").html(`${weatherData.name} (${moment(weatherData.dt, "X").format(units[displayUnits].dateFormat)})<img src="https://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png" alt="${weatherData.weather[0].description}">`);
+        $("#currentTemp").html(`${weatherData.main.temp.toFixed(1)}${units[displayUnits].temp}`);
+        $("#currentHumidity").html(`${weatherData.main.humidity}%`);
+        $("#currentWindSpeed").html(`${weatherData.wind.speed}${units[displayUnits].wind}`);
+        // $("#reportTime").html(`${moment(weatherData.dt, "X").format("hh:mm")}`);
+        // $("#sunriseTime").html(`${moment(weatherData.sys.sunrise, "X").format("hh:mm")}`);
+        // $("#sunsetTime").html(`${moment(weatherData.sys.sunset, "X").format("hh:mm")}`);
+        processTimes(weatherData.dt, weatherData.sys.sunrise, weatherData.sys.sunset, weatherData.timezone)
+        callAPI("uvi", `lat=${weatherData.coord.lat}&lon=${weatherData.coord.lon}`, processUV)
+        callAPI("forecast", `id=${weatherData.id}&units=${displayUnits}`, processForecast);
+        addCityToHistory(processedName);
+        searchHistory.unshift(processedName);
+        removeDuplicateCity(processedName);
+        localStorage.setItem("lastCity", JSON.stringify(searchHistory));
     }
 
     // proccess the forecast results
-    var displayForecast = function (forecastData) {
+    var processForecast = function (forecastData) {
         $("#forecast-weather").empty();
         for (var i = 7; i < 40; i += 8) {
             var forecast = forecastData.list[i];
@@ -98,7 +122,7 @@ $("document").ready(function () {
                 $("<h4>").text(moment(forecast.dt, "X").format(units[displayUnits].dateFormatShort)),
                 $("<img>").attr("src", `https://openweathermap.org/img/wn/${forecast.weather[0].icon}.png`)
                     .attr("alt", forecast.weather[0].description),
-                $("<p>").html(`Temp: ${forecast.main.temp}${units[displayUnits].temp}`),
+                $("<p>").html(`Temp: ${forecast.main.temp.toFixed(1)}${units[displayUnits].temp}`),
                 $("<p>").text(`Humidity: ${forecast.main.humidity}%`)
             ));
         }
@@ -106,9 +130,13 @@ $("document").ready(function () {
 
     // initialize data, loads last city if there is one in localStorage
     function init() {
-        if (lastCity.trim()) {
-            callAPI("weather", `q=${lastCity}&units=${displayUnits}`, displayWeather);
-            callAPI("forecast", `q=${lastCity}&units=${displayUnits}`, displayForecast);
+        if (searchHistory[0]) {
+            for (var i = 0, last = searchHistory.length - 1; i < searchHistory.length; i++) {
+                if (searchHistory[last - i].trim()) {
+                    addCityToHistory(searchHistory[last - i].trim());
+                }
+            }
+            callAPI("weather", `q=${searchHistory[0]}&units=${displayUnits}`, processWeather);
         }
         else {
             setUV("Search for a City to see the current weather!");
@@ -117,25 +145,20 @@ $("document").ready(function () {
 
     function submit() {
         event.preventDefault();
-        var searchCity = $("#search-text").val().trim()
-        if (searchCity && searchCity.toUpperCase() !== lastCity.toUpperCase()) {
-            callAPI("weather", `q=${searchCity}&units=${displayUnits}`, displayWeather);
-            callAPI("forecast", `q=${searchCity}&units=${displayUnits}`, displayForecast);
+        var searchCity = $("#search-text").val().trim();
+        var searchCountry = $("#country-code").val().trim();
+        if (searchCity) {
+            callAPI("weather", `q=${searchCity},${searchCountry}&units=${displayUnits}`, processWeather);
         }
     }
 
     init();
-    $("#search-text").on("keydown", function (event) {
-        if (event.keyCode == 13) {
-            submit();
-        }
-    })
+    $("form").on("submit", submit)
     $("#search-btn").on("click", submit);
     $("#search-history").on("click", function (event) {
         var searchCity = event.target.textContent.trim();
-        if (searchCity && searchCity !== lastCity) {
-            callAPI("weather", `q=${searchCity}&units=${displayUnits}`, displayWeather);
-            callAPI("forecast", `q=${searchCity}&units=${displayUnits}`, displayForecast);
+        if (searchCity) {
+            callAPI("weather", `q=${searchCity}&units=${displayUnits}`, processWeather);
         }
     });
     $("#imperialCheck").on("click", function () {
@@ -145,7 +168,7 @@ $("document").ready(function () {
         else {
             displayUnits = "metric";
         }
-        if (lastCity.trim()) {
+        if (searchHistory[0]) {
             init();
         }
     });
