@@ -1,6 +1,5 @@
 $("document").ready(function () {
     var searchHistory = JSON.parse(localStorage.getItem("lastCity")) || [];
-    var uvTag = $("#uv-tag");
     var displayUnits = "metric";
     var units = {
         "metric": {
@@ -16,10 +15,71 @@ $("document").ready(function () {
             dateFormatShort: "M/D/YY"
         }
     }
-    var lastQuery = {};
-    var graphData = [];
+    // var graphData = [];
 
+    var processUV = function (response) {
+        setUV(response.value);
+    };
+
+    var displayTimes = function (report, sunrise, sunset, timezone) {
+        $("#timeZone").html(`${parseTimeUTC(timezone / 60)} UTC`)
+        $("#currentTime").html(`${moment().utcOffset(timezone).format("hh:mm a")}`)
+        $("#reportTime").html(`${moment(report, "X").utcOffset(timezone).format("hh:mm a")}`);
+        $("#sunriseTime").html(`${moment(sunrise, "X").utcOffset(timezone).format("hh:mm a")}`);
+        $("#sunsetTime").html(`${moment(sunset, "X").utcOffset(timezone).format("hh:mm a")}`);
+    };
+
+    // process the current weather results
+    var processWeather = function (weatherData) {
+        var processedName = `${weatherData.name},${weatherData.sys.country}`;
+        $("#currentCity").html(`${weatherData.name} (${moment(weatherData.dt, "X").utcOffset(weatherData.timezone / 60).format(units[displayUnits].dateFormat)})<img src="https://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png" alt="${weatherData.weather[0].description}">`);
+        $("#currentTemp").html(`${weatherData.main.temp.toFixed(1)}${units[displayUnits].temp}`);
+        $("#currentHumidity").html(`${weatherData.main.humidity}%`);
+        $("#currentWindSpeed").html(`${weatherData.wind.speed}${units[displayUnits].wind}`);
+        displayTimes(weatherData.dt, weatherData.sys.sunrise, weatherData.sys.sunset, weatherData.timezone / 60)
+        callAPI("uvi", `lat=${weatherData.coord.lat}&lon=${weatherData.coord.lon}`, processUV)
+        callAPI("forecast", `id=${weatherData.id}&units=${displayUnits}`, processForecast);
+        addCityToHistory(processedName);
+        searchHistory.unshift(processedName);
+        removeDuplicateCity(processedName);
+        localStorage.setItem("lastCity", JSON.stringify(searchHistory));
+    }
+
+    // proccess and display the forecast results
+    var processForecast = function (forecastData) {
+        displayGraph(forecastData.list);
+        $("#forecast-weather").empty();
+        for (var i = 7; i < 40; i += 8) {
+            var forecast = forecastData.list[i];
+            $("#forecast-weather").append($("<div>").addClass("col bg-primary text-white").append(
+                $("<h4>").text(moment(forecast.dt, "X").utcOffset(forecastData.city.timezone / 60).format(units[displayUnits].dateFormatShort)),
+                $("<img>").attr("src", `https://openweathermap.org/img/wn/${forecast.weather[0].icon}.png`)
+                    .attr("alt", forecast.weather[0].description),
+                $("<p>").html(`${forecast.main.temp.toFixed(1)}${units[displayUnits].temp}`),
+                $("<p>").text(`Humidity: ${forecast.main.humidity}%`)
+            ));
+        }
+    }
+
+    // function to display a graph of temperatures from the forecast data
+    function displayGraph(graphDataArray) {
+        // graphdata = graphDataArray.slice();
+        // console.log(graphDataArray);
+    }
+
+    // makes the Time zone display prettier, hours input
+    function parseTimeUTC(time) {
+        if (time > 0) {
+            return `+${time}`
+        }
+        else {
+            return time;
+        }
+    }
+
+    // sets the colour and text of the UV display.
     function setUV(input) {
+        var uvTag = $("#uv-tag")
         uvTag.removeClass();
         uvTag.addClass("badge")
         switch (Math.floor(input)) {
@@ -82,64 +142,6 @@ $("document").ready(function () {
         });
     }
 
-    var processUV = function (response) {
-        setUV(response.value);
-    };
-
-    function parseTime(time) {
-        if (time > 0) {
-            return `+${time}`
-        }
-        else {
-            return time;
-        }
-    }
-
-    var processTimes = function (report, sunrise, sunset, timezone) {
-        $("#timeZone").html(`${parseTime(timezone / 60)} UTC`)
-        $("#currentTime").html(`${moment().utcOffset(timezone).format("hh:mm a")}`)
-        $("#reportTime").html(`${moment(report, "X").utcOffset(timezone).format("hh:mm a")}`);
-        $("#sunriseTime").html(`${moment(sunrise, "X").utcOffset(timezone).format("hh:mm a")}`);
-        $("#sunsetTime").html(`${moment(sunset, "X").utcOffset(timezone).format("hh:mm a")}`);
-    };
-
-    // process the current weather results
-    var processWeather = function (weatherData) {
-        lastQuery = weatherData;
-        var processedName = `${weatherData.name},${weatherData.sys.country}`;
-        $("#currentCity").html(`${weatherData.name} (${moment(weatherData.dt, "X").utcOffset(weatherData.timezone / 60).format(units[displayUnits].dateFormat)})<img src="https://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png" alt="${weatherData.weather[0].description}">`);
-        $("#currentTemp").html(`${weatherData.main.temp.toFixed(1)}${units[displayUnits].temp}`);
-        $("#currentHumidity").html(`${weatherData.main.humidity}%`);
-        $("#currentWindSpeed").html(`${weatherData.wind.speed}${units[displayUnits].wind}`);
-        processTimes(weatherData.dt, weatherData.sys.sunrise, weatherData.sys.sunset, weatherData.timezone / 60)
-        callAPI("uvi", `lat=${weatherData.coord.lat}&lon=${weatherData.coord.lon}`, processUV)
-        callAPI("forecast", `id=${weatherData.id}&units=${displayUnits}`, processForecast);
-        addCityToHistory(processedName);
-        searchHistory.unshift(processedName);
-        removeDuplicateCity(processedName);
-        localStorage.setItem("lastCity", JSON.stringify(searchHistory));
-    }
-
-    // proccess the forecast results
-    var processForecast = function (forecastData) {
-        graphData = [];
-        $("#forecast-weather").empty();
-        forecastData.list.forEach(element => {
-            graphData.push(element);
-        });
-        // console.log(graphData);
-        for (var i = 7; i < 40; i += 8) {
-            var forecast = forecastData.list[i];
-            $("#forecast-weather").append($("<div>").addClass("col bg-primary text-white").append(
-                $("<h4>").text(moment(forecast.dt, "X").utcOffset(forecastData.city.timezone / 60).format(units[displayUnits].dateFormatShort)),
-                $("<img>").attr("src", `https://openweathermap.org/img/wn/${forecast.weather[0].icon}.png`)
-                    .attr("alt", forecast.weather[0].description),
-                $("<p>").html(`Temp: ${forecast.main.temp.toFixed(1)}${units[displayUnits].temp}`),
-                $("<p>").text(`Humidity: ${forecast.main.humidity}%`)
-            ));
-        }
-    }
-
     function submit() {
         event.preventDefault();
         var searchCity = $("#search-text").val().trim();
@@ -151,7 +153,7 @@ $("document").ready(function () {
             callAPI("weather", `q=${searchCity}&units=${displayUnits}`, processWeather);
         }
         else {
-            console.log("make a warning about missing search terms");
+            // console.log("make a warning about missing search terms");
         }
     }
 
