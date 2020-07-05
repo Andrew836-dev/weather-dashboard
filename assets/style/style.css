@@ -31,9 +31,9 @@
 li {
     cursor: pointer;
 }
-#country-code {
+/* #country-code {
     width: 2rem;
-}
+} */
 
 input[type=submit] {
     padding: 0px;

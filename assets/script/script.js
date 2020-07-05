@@ -16,6 +16,8 @@ $("document").ready(function () {
             dateFormatShort: "M/D/YY"
         }
     }
+    var lastQuery = {};
+    var graphData = [];
 
     function setUV(input) {
         uvTag.removeClass();
@@ -76,8 +78,6 @@ $("document").ready(function () {
             method: "GET",
             success: function (response) {
                 successFunc(response);
-                console.log(type);
-                console.log(response);
             }
         });
     }
@@ -86,25 +86,32 @@ $("document").ready(function () {
         setUV(response.value);
     };
 
+    function parseTime(time) {
+        if (time > 0) {
+            return `+${time}`
+        }
+        else {
+            return time;
+        }
+    }
+
     var processTimes = function (report, sunrise, sunset, timezone) {
-        $("#currentTime").html(`${moment().format("hh:mm a")}`)
-        $("#reportTime").html(`${moment(report, "X").format("hh:mm a")}`);
-        $("#sunriseTime").html(`${moment(sunrise, "X").format("hh:mm a")}`);
-        $("#sunsetTime").html(`${moment(sunset, "X").format("hh:mm a")}`);
-        console.log(moment(timezone, "X"))
+        $("#timeZone").html(`${parseTime(timezone / 60)} UTC`)
+        $("#currentTime").html(`${moment().utcOffset(timezone).format("hh:mm a")}`)
+        $("#reportTime").html(`${moment(report, "X").utcOffset(timezone).format("hh:mm a")}`);
+        $("#sunriseTime").html(`${moment(sunrise, "X").utcOffset(timezone).format("hh:mm a")}`);
+        $("#sunsetTime").html(`${moment(sunset, "X").utcOffset(timezone).format("hh:mm a")}`);
     };
 
     // process the current weather results
     var processWeather = function (weatherData) {
+        lastQuery = weatherData;
         var processedName = `${weatherData.name},${weatherData.sys.country}`;
-        $("#currentCity").html(`${weatherData.name} (${moment(weatherData.dt, "X").format(units[displayUnits].dateFormat)})<img src="https://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png" alt="${weatherData.weather[0].description}">`);
+        $("#currentCity").html(`${weatherData.name} (${moment(weatherData.dt, "X").utcOffset(weatherData.timezone / 60).format(units[displayUnits].dateFormat)})<img src="https://openweathermap.org/img/wn/${weatherData.weather[0].icon}.png" alt="${weatherData.weather[0].description}">`);
         $("#currentTemp").html(`${weatherData.main.temp.toFixed(1)}${units[displayUnits].temp}`);
         $("#currentHumidity").html(`${weatherData.main.humidity}%`);
         $("#currentWindSpeed").html(`${weatherData.wind.speed}${units[displayUnits].wind}`);
-        // $("#reportTime").html(`${moment(weatherData.dt, "X").format("hh:mm")}`);
-        // $("#sunriseTime").html(`${moment(weatherData.sys.sunrise, "X").format("hh:mm")}`);
-        // $("#sunsetTime").html(`${moment(weatherData.sys.sunset, "X").format("hh:mm")}`);
-        processTimes(weatherData.dt, weatherData.sys.sunrise, weatherData.sys.sunset, weatherData.timezone)
+        processTimes(weatherData.dt, weatherData.sys.sunrise, weatherData.sys.sunset, weatherData.timezone / 60)
         callAPI("uvi", `lat=${weatherData.coord.lat}&lon=${weatherData.coord.lon}`, processUV)
         callAPI("forecast", `id=${weatherData.id}&units=${displayUnits}`, processForecast);
         addCityToHistory(processedName);
@@ -115,16 +122,36 @@ $("document").ready(function () {
 
     // proccess the forecast results
     var processForecast = function (forecastData) {
+        graphData = [];
         $("#forecast-weather").empty();
+        forecastData.list.forEach(element => {
+            graphData.push(element);
+        });
+        // console.log(graphData);
         for (var i = 7; i < 40; i += 8) {
             var forecast = forecastData.list[i];
             $("#forecast-weather").append($("<div>").addClass("col bg-primary text-white").append(
-                $("<h4>").text(moment(forecast.dt, "X").format(units[displayUnits].dateFormatShort)),
+                $("<h4>").text(moment(forecast.dt, "X").utcOffset(forecastData.city.timezone / 60).format(units[displayUnits].dateFormatShort)),
                 $("<img>").attr("src", `https://openweathermap.org/img/wn/${forecast.weather[0].icon}.png`)
                     .attr("alt", forecast.weather[0].description),
                 $("<p>").html(`Temp: ${forecast.main.temp.toFixed(1)}${units[displayUnits].temp}`),
                 $("<p>").text(`Humidity: ${forecast.main.humidity}%`)
             ));
+        }
+    }
+
+    function submit() {
+        event.preventDefault();
+        var searchCity = $("#search-text").val().trim();
+        var searchCountry = $("#country-code").val().trim();
+        if (searchCountry && searchCity) {
+            searchCity += `,${searchCountry}`;
+        }
+        if (searchCity) {
+            callAPI("weather", `q=${searchCity}&units=${displayUnits}`, processWeather);
+        }
+        else {
+            console.log("make a warning about missing search terms");
         }
     }
 
@@ -143,16 +170,9 @@ $("document").ready(function () {
         }
     }
 
-    function submit() {
-        event.preventDefault();
-        var searchCity = $("#search-text").val().trim();
-        var searchCountry = $("#country-code").val().trim();
-        if (searchCity) {
-            callAPI("weather", `q=${searchCity},${searchCountry}&units=${displayUnits}`, processWeather);
-        }
-    }
-
     init();
+
+    // event listeners
     $("form").on("submit", submit)
     $("#search-btn").on("click", submit);
     $("#search-history").on("click", function (event) {
@@ -161,6 +181,18 @@ $("document").ready(function () {
             callAPI("weather", `q=${searchCity}&units=${displayUnits}`, processWeather);
         }
     });
+    $("#searchCollapse").on("hidden.bs.collapse", function () {
+        $("#searchToggle").html("&plus;");
+    });
+    $("#searchCollapse").on("shown.bs.collapse", function () {
+        $("#searchToggle").html("&minus;");
+    })
+    $("#advanceSearch").on("hidden.bs.collapse", function () {
+        $("#advanceToggle").html("&plus;");
+    });
+    $("#advanceSearch").on("shown.bs.collapse", function () {
+        $("#advanceToggle").html("&minus;");
+    })
     $("#imperialCheck").on("click", function () {
         if (displayUnits == "metric") {
             displayUnits = "imperial";
