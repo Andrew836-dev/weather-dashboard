@@ -1,5 +1,5 @@
 $("document").ready(function () {
-    var searchHistory = JSON.parse(localStorage.getItem("lastCity")) || [];
+    var searchHistory = JSON.parse(localStorage.getItem("lastCity"));
     var displayUnits = "metric";
     var units = {
         "metric": {
@@ -168,6 +168,7 @@ $("document").ready(function () {
             callAPI("weather", `q=${searchHistory[0]}&units=${displayUnits}`, processWeather);
         }
         else {
+            searchHistory = [];
             setUV("Search for a City to see the current weather!");
         }
     }
