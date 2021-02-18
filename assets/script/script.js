@@ -1,5 +1,5 @@
 $("document").ready(function () {
-    var searchHistory = JSON.parse(localStorage.getItem("lastCity"));
+    var searchHistory = JSON.parse(localStorage.getItem("lastCity")) || [];
     var displayUnits = "metric";
     var units = {
         "metric": {
@@ -142,7 +142,7 @@ $("document").ready(function () {
         });
     }
 
-    function submit() {
+    function submit(event) {
         event.preventDefault();
         var searchCity = $("#search-text").val().trim();
         var searchCountry = $("#country-code").val().trim();
