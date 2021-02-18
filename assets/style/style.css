@@ -35,6 +35,10 @@ li {
     width: 2rem;
 } */
 
+#forecast-graph {
+    max-height: 300px;
+}
+
 input[type=submit] {
     padding: 0px;
     margin: 0px;

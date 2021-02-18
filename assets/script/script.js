@@ -47,7 +47,7 @@ $("document").ready(function () {
 
     // proccess and display the forecast results
     var processForecast = function (forecastData) {
-        displayGraph(forecastData.list);
+        displayGraph(forecastData.list, forecastData.city.timezone);
         $("#forecast-weather").empty();
         for (var i = 7; i < 40; i += 8) {
             var forecast = forecastData.list[i];
@@ -62,9 +62,26 @@ $("document").ready(function () {
     }
 
     // function to display a graph of temperatures from the forecast data
-    function displayGraph(graphDataArray) {
-        // graphdata = graphDataArray.slice();
-        // console.log(graphDataArray);
+    function displayGraph(graphDataArray, cityTimezone) {
+        // [{clouds:{}, dt: 'unix time code', dt_txt: 'date', main:{temp: 22, feels_like: 22, temp_min: 22, temp_max:22, }}]
+        // Array is 40 entries long, each entry is a 3 hour forecast
+        const entryLimit = 40;
+        const temperatures = graphDataArray.map(({ main }) => main.temp).slice(0, entryLimit);
+        const times = graphDataArray.map(({ dt }) => moment(dt, "X").utcOffset(cityTimezone / 60).format("hh:mm a")).slice(0, entryLimit);
+
+        var myChart = new Chart(document.getElementById("forecast-graph").getContext('2d'), {
+            type: "line",
+            data: {
+                labels: times,
+                datasets: [{
+                    label: "Forecast temperatures",
+                    data: temperatures,
+                    backgroundColor: "rgba(0, 52, 235, 0.2)",
+                    borderColor: "blue",
+                    borderWidth: 1
+                }]
+            }
+        });
     }
 
     // makes the Time zone display prettier, hours input
