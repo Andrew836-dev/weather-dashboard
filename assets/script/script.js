@@ -1,5 +1,11 @@
 $("document").ready(function () {
-    var searchHistory = JSON.parse(localStorage.getItem("lastCity")) || [];
+    var searchHistory
+    try {
+        searchHistory = JSON.parse(localStorage.getItem("lastCity"));
+    } catch (err) {
+        console.log("Local storage data not found, using default", err);
+        searchHistory = [];
+    }
     var displayUnits = "metric";
     var units = {
         "metric": {
@@ -15,7 +21,6 @@ $("document").ready(function () {
             dateFormatShort: "M/D/YY"
         }
     }
-    // var graphData = [];
 
     var processUV = function (response) {
         setUV(response.value);
@@ -155,8 +160,16 @@ $("document").ready(function () {
             method: "GET",
             success: function (response) {
                 successFunc(response);
+            },
+            error: function ({ responseJSON: { message } }) {
+                // const message = response.responseJSON.message;
+                const displayMessage = message.substring(0, 1).toUpperCase() + message.substring(1);
+                showError(displayMessage);
             }
         });
+    }
+    function showError(errorMessage) {
+        $("#currentCity").html(errorMessage);
     }
 
     function submit(event) {
@@ -170,13 +183,14 @@ $("document").ready(function () {
             callAPI("weather", `q=${searchCity}&units=${displayUnits}`, processWeather);
         }
         else {
+            showError("Please enter valid Search terms");
             // console.log("make a warning about missing search terms");
         }
     }
 
     // initialize data, loads last city if there is one in localStorage
     function init() {
-        if (searchHistory[0]) {
+        if (Array.isArray(searchHistory)) {
             for (var i = 0, last = searchHistory.length - 1; i < searchHistory.length; i++) {
                 if (searchHistory[last - i].trim()) {
                     addCityToHistory(searchHistory[last - i].trim());
